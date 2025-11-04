@@ -30,7 +30,7 @@ if upload is not None:
 
 elif use_sample:
     local_path = "data/energy_sample.csv"
-    remote_url = "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/klisus-esg-dashboard/main/data/energy_sample.csv"
+    remote_url = "https://raw.githubusercontent.com/sumanmandal2023/klisus-esg-dashboard/refs/heads/main/energy_sample.csv"
 
     try:
         if os.path.exists(local_path):
@@ -79,4 +79,5 @@ try:
         st.dataframe(ledger)
 except FileNotFoundError:
     st.info("No verification records yet — upload a CSV to create one.")
+
 
