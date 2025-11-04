@@ -1,16 +1,19 @@
-# app.py
 import streamlit as st
 import pandas as pd
+import os
 from utils import load_data, compute_kpis
 from verification import compute_hash, create_proof_record, store_proof_local
 
 st.set_page_config(page_title="KliSus ESG-Energy Dashboard", layout="wide")
 st.title("🌱 KliSus ESG-Energy Dashboard (MVP)")
 
-# Sidebar for upload or sample
+# --- Sidebar ---
 st.sidebar.header("Data Input")
 upload = st.sidebar.file_uploader("Upload your energy CSV", type=["csv"])
 use_sample = st.sidebar.checkbox("Use sample data", value=True)
+
+# --- File Handling ---
+df = None
 
 if upload is not None:
     file_bytes = upload.getvalue()
@@ -18,25 +21,29 @@ if upload is not None:
     st.sidebar.markdown(f"**File hash:** `{file_hash[:16]}...`")
     try:
         df = pd.read_csv(upload)
+        record = create_proof_record(upload.name, file_hash)
+        store_proof_local(record)
+        st.sidebar.success("✅ File uploaded and verified")
     except Exception as e:
-        st.error(f"Error reading CSV: {e}")
+        st.error(f"Error reading uploaded CSV: {e}")
         st.stop()
-    # store proof locally
-    record = create_proof_record(upload.name, file_hash)
-    store_proof_local(record)
-    st.sidebar.success("Uploaded and proof stored locally ✅")
+
 elif use_sample:
-    import os
+    local_path = "data/energy_sample.csv"
+    remote_url = "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/klisus-esg-dashboard/main/data/energy_sample.csv"
 
-    sample_path = "data/energy_sample.csv"
-    if not os.path.exists(sample_path):
-        st.warning("Sample data not found. Please upload a CSV file using the sidebar.")
+    try:
+        if os.path.exists(local_path):
+            df = pd.read_csv(local_path)
+        else:
+            st.info("🔄 Loading sample data from GitHub...")
+            df = pd.read_csv(remote_url)
+            st.sidebar.success("✅ Sample data loaded from GitHub")
+    except Exception as e:
+        st.warning("⚠️ Sample data not found. Please upload a CSV file using the sidebar.")
         st.stop()
-    else:
-        df = load_data(sample_path)
-
 else:
-    st.info("Upload a CSV or check 'Use sample data'.")
+    st.info("📂 Please upload your CSV or check 'Use sample data'.")
     st.stop()
 
 # --- KPIs ---
@@ -48,13 +55,13 @@ col3.metric("Total CO₂ (tCO₂e)", f"{kpis['total_co2']:,}")
 col4.metric("Energy Intensity (kWh/unit)", f"{kpis['latest_intensity']:.2f}")
 
 # --- Charts ---
-st.subheader("Trends")
+st.subheader("📊 Trends Overview")
 st.line_chart(df.set_index("Year")["Energy_Consumption_kWh"])
 st.bar_chart(df.set_index("Year")["Renewable_Energy_Percent"])
 st.line_chart(df.set_index("Year")["CO2_Emissions_tCO2e"])
 
 # --- ESG Mapping ---
-st.subheader("ESG Indicator Mapping")
+st.subheader("🌍 ESG Indicator Mapping")
 mapping = {
     "BRSR": "Energy use, Renewable energy, Emission reduction",
     "GRI 302": "Energy efficiency initiatives",
@@ -64,11 +71,12 @@ mapping = {
 st.table(pd.DataFrame(list(mapping.items()), columns=["Framework", "Relevant Metrics"]))
 
 # --- Verification Records ---
-st.subheader("Verification Ledger")
+st.subheader("🧾 Verification Ledger")
 try:
     with open("ledger.json", "r") as f:
         import json
         ledger = json.load(f)
-        st.write(ledger)
+        st.dataframe(ledger)
 except FileNotFoundError:
     st.info("No verification records yet — upload a CSV to create one.")
+
