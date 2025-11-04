@@ -26,7 +26,15 @@ if upload is not None:
     store_proof_local(record)
     st.sidebar.success("Uploaded and proof stored locally ✅")
 elif use_sample:
-    df = load_data("data/energy_sample.csv")
+    import os
+
+    sample_path = "data/energy_sample.csv"
+    if not os.path.exists(sample_path):
+        st.warning("Sample data not found. Please upload a CSV file using the sidebar.")
+        st.stop()
+    else:
+        df = load_data(sample_path)
+
 else:
     st.info("Upload a CSV or check 'Use sample data'.")
     st.stop()
